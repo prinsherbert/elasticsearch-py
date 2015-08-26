@@ -252,10 +252,17 @@ def scan(client, query=None, scroll='5m', raise_on_error=True, preserve_order=Fa
                 'Scrol request has failed on %d shards out of %d.',
                 resp['_shards']['failed'], resp['_shards']['total']
             )
+            if 'failures' in resp['_shards']:
+                for status, reason in set((failure['status'], failure['reason']) for failure in resp['_shards']['failures']):
+                    logger.warning('Failure on one shard with status %d: %s' % (status, reason))
             if raise_on_error:
+                if 'failures' in resp['_shards']:
+                    failures =  ' Failure messages: ' + '; '.join(set("with status %d: %s" % (failure['status'], failure['reason']) for failure in resp['_shards']['failures']))
+                else:
+                    failures = ''
                 raise ScanError(
-                    'Scrol request has failed on %d shards out of %d.',
-                    resp['_shards']['failed'], resp['_shards']['total']
+                    'Scrol request has failed on %d shards out of %d.%s',
+                    resp['_shards']['failed'], resp['_shards']['total'], failures
                 )
 
         scroll_id = resp.get('_scroll_id')
